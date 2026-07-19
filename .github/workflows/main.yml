@@ -83,10 +83,17 @@ jobs:
       
     steps:
       - name: Clone repo
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd /tmp/
+          MICROPYTHON_VERSION_SHORT="${MICROPYTHON_VERSION#v}"
           gh release download "$MICROPYTHON_VERSION" --repo "$MICROPYTHON_REPO_SHORT" --pattern "micropython-*.tar.xz"
-          tar -xJf micropython-*.tar.xz
+          
+          tar -xJf "micropython-$MICROPYTHON_VERSION_SHORT.tar.xz"
+          MICROPYTHON_ROOT_DIR="/tmp/micropython-$MICROPYTHON_VERSION_SHORT"
+          echo "$MICROPYTHON_ROOT_DIR"
+          echo "MICROPYTHON_ROOT_DIR=$MICROPYTHON_ROOT_DIR" >> $GITHUB_ENV
           exit 1
 
       
