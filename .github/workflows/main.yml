@@ -9,7 +9,7 @@ on:
 #   contents: write
 
 env:
-  MICROPYTHON_ROOT_DIR: /tmp/dellpwn
+  MICROPYTHON_ROOT_DIR: /tmp/micropython
   MICROPYTHON_REPO_SHORT: micropython/micropython
   APT: sudo apt -y -qq -o=Dpkg::Use-Pty=0
 
@@ -23,7 +23,6 @@ jobs:
     outputs:
       MICROPYTHON_PREBUILT_LATEST_TAG: ${{ steps.release_latest_tag.outputs.MICROPYTHON_PREBUILT_LATEST_TAG }}
       MICROPYTHON_LATEST_RELEASE: ${{ steps.release_commit_id.outputs.MICROPYTHON_LATEST_RELEASE }}
-      MICROPYTHON_VERSION: ${{ steps.release_version.outputs.MICROPYTHON_VERSION }}
     
     steps:
       - name: Get latest release tag of this repo
@@ -47,12 +46,6 @@ jobs:
 
           MICROPYTHON_LATEST_RELEASE=$(gh release list -R $MICROPYTHON_REPO_SHORT --json tagName -L 1 --jq '.[].tagName' --exclude-drafts --exclude-pre-releases)
           echo "$MICROPYTHON_LATEST_RELEASE"
-          echo "$MICROPYTHON_PREBUILT_LATEST_TAG"
-          exit 1
-          
-          #git clone --depth=1 "$MICROPYTHON_REPO" "$MICROPYTHON_BIN_NAME"
-
-          cd "$MICROPYTHON_ROOT_DIR"
           echo "MICROPYTHON_LATEST_RELEASE=$MICROPYTHON_LATEST_RELEASE" >> $GITHUB_ENV
           echo "MICROPYTHON_LATEST_RELEASE=$MICROPYTHON_LATEST_RELEASE" >> $GITHUB_OUTPUT
 
@@ -86,13 +79,16 @@ jobs:
       OS: ${{ matrix.OS }}
 
       MICROPYTHON_PREBUILT_LATEST_TAG: ${{ needs.checkout.outputs.MICROPYTHON_PREBUILT_LATEST_TAG }}
-      MICROPYTHON_VERSION: ${{ needs.checkout.outputs.MICROPYTHON_VERSION }}
+      MICROPYTHON_LATEST_RELEASE: ${{ needs.checkout.outputs.MICROPYTHON_LATEST_RELEASE }}
       
     steps:
       - name: Clone repo
         run: |
           cd /tmp/
-          git clone --depth=1 "$MICROPYTHON_REPO" "$MICROPYTHON_BIN_NAME"
+          gh release download "$MICROPYTHON_VERSION" --repo "$MICROPYTHON_REPO_SHORT" --pattern "micropython-*.tar.xz"
+          tar -xJf "micropython-*.tar.xz"
+          exit 1
+
       
       - name: Install and configure dependencies
         run: |
