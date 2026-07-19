@@ -1,4 +1,4 @@
-include("$(PORT_DIR)/boards/manifest.py")
+include("$(PORT_DIR)/modules/manifest.py")
 
 # Utils
 require("neopixel")
