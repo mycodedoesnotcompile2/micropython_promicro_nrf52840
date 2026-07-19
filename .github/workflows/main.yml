@@ -117,8 +117,11 @@ jobs:
         
       - name: Run build
         run: |
+          if [[ "$TARGET" == "s132_nrf52_6_1_1" ]]; then
+            sed -i '/MICROPY_HW_ENABLE_USB/d; $a#define MICROPY_HW_ENABLE_USB (0)' "$GITHUB_WORKSPACE/ProMicro_config_files/mpconfigboard.h"; 
+          fi
+          
           cd "$MICROPYTHON_ROOT_DIR/ports/nrf/"
-          #make submodules
           make BOARD=SUPERMINI_NRF52840 BOARD_DIR="$GITHUB_WORKSPACE/ProMicro_config_files" SD="$SD" SOFTDEV_VERSION="$SOFTDEV_VERSION"
           ls -alh
 
