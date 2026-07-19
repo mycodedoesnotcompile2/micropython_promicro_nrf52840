@@ -10,6 +10,7 @@ on:
 
 env:
   MICROPYTHON_REPO_SHORT: micropython/micropython
+  DOWNLOAD_BLE_STACK: download_ble_stack.sh
   APT: sudo apt -y -qq -o=Dpkg::Use-Pty=0
 
 defaults:
@@ -98,8 +99,13 @@ jobs:
       
       - name: Install dependencies and set env vars
         run: | 
+          cd /tmp/
           $APT update
-          $APT install binutils-arm-none-eabi build-essential gcc-arm-none-eabi libffi-dev git libnewlib-arm-none-eabi pkg-config python3
+          $APT install binutils-arm-none-eabi build-essential gcc-arm-none-eabi libffi-dev libnewlib-arm-none-eabi pkg-config python3
+
+          cd "$MICROPYTHON_ROOT_DIR/ports/nrf/drivers/bluetooth/"
+          chmod o+x $DOWNLOAD_BLE_STACK
+          "$DOWNLOAD_BLE_STACK" "$TARGET"
 
           IFS=_ read -r SD FAMILY MAJOR MINOR PATCH <<< "$TARGET"
           SOFTDEV_VERSION="$MAJOR.$MINOR.$PATCH"
@@ -108,31 +114,16 @@ jobs:
           
           echo "SD=$SD" >> $GITHUB_ENV
           echo "SOFTDEV_VERSION=$SOFTDEV_VERSION" >> $GITHUB_ENV
-          
-          exit 1
-      
-      - name: Install rust target
-        run: |
-          if [[ $TARGET == "mips"* ]]; then
-            rustup toolchain install nightly
-            rustup component add rust-src --toolchain nightly
-          else
-            rustup target add $TARGET
-          fi
+
         
       - name: Run build
         run: |
-          cd $MICROPYTHON_ROOT_DIR
+          cd "$MICROPYTHON_ROOT_DIR/ports/nrf/"
+          make BOARD=SUPERMINI_NRF52840 BOARD_DIR="$GITHUB_WORKSPACE/ProMicro_config_files"
+          ls -alh
 
-          if [[ -z "${CC_COMPILER:-}" ]]; then
-            CC_COMPILER="cargo"
-          fi
-          
-          if [[ $TARGET == "mips"* ]]; then
-            $CC_COMPILER +nightly build -Z build-std=std,panic_abort -p "$MICROPYTHON_BIN_NAME" --release --target $TARGET
-          else
-            $CC_COMPILER build -p "$MICROPYTHON_BIN_NAME" --release --target $TARGET
-          fi
+          exit 1
+
                 
       - name: List build information
         run: |
@@ -167,6 +158,7 @@ jobs:
           path: |
             ${{ env.MICROPYTHON_BIN_PATH }}
             ${{ env.MICROPYTHON_BIN_HASH_PATH }}
+
 
   deploy_release:
     needs: [checkout, build]
