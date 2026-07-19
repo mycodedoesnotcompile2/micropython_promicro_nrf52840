@@ -87,45 +87,15 @@ jobs:
         run: |
           cd /tmp/
           MICROPYTHON_VERSION_SHORT="${MICROPYTHON_LATEST_RELEASE#v}"
-          gh release download "$MICROPYTHON_LATEST_RELEASE" --repo "$MICROPYTHON_REPO_SHORT" --pattern "micropython-*.tar.xz"
           
+          gh release download "$MICROPYTHON_LATEST_RELEASE" --repo "$MICROPYTHON_REPO_SHORT" --pattern "micropython-*.tar.xz"
           tar -xJf "micropython-$MICROPYTHON_VERSION_SHORT.tar.xz"
           MICROPYTHON_ROOT_DIR="/tmp/micropython-$MICROPYTHON_VERSION_SHORT"
-          echo "$MICROPYTHON_ROOT_DIR"
           echo "MICROPYTHON_ROOT_DIR=$MICROPYTHON_ROOT_DIR" >> $GITHUB_ENV
-          exit 1
 
       
       - name: Install and configure dependencies
         run: |
-          if [[ $OS == windows* ]]; then
-            $CHOCO wget
-          fi
-          
-          if [[ $OS == ubuntu* ]]; then
-            $APT update
-          fi
-
-          # for musl builds
-          if [[ $TARGET == *"-musl"* ]]; then
-            $APT install musl-tools
-          fi
-
-          # for everything else
-          if [[ -n "${CC_PKG:-}" ]]; then
-            $APT install $CC_PKG
-          fi
-
-          # for arm targets
-          if [[ $TARGET == "arm"* ]]; then
-            cd "$MICROPYTHON_ROOT_DIR"
-            cargo install --force --locked bindgen-cli
-          fi
-          
-          cargo install cross
-          
-          wget -nv "https://github.com/mycodedoesnotcompile2/rust_compile_config_files/raw/refs/heads/main/cross.toml" -O "$CROSS_CONFIG"
-          wget -nv "https://github.com/mycodedoesnotcompile2/rust_compile_config_files/raw/refs/heads/main/config.toml" -O ~/.cargo/config.toml
 
       
       - name: Install rust target
