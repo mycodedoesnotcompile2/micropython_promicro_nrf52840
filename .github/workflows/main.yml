@@ -9,7 +9,6 @@ on:
 #   contents: write
 
 env:
-  MICROPYTHON_ROOT_DIR: /tmp/micropython
   MICROPYTHON_REPO_SHORT: micropython/micropython
   APT: sudo apt -y -qq -o=Dpkg::Use-Pty=0
 
@@ -87,8 +86,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd /tmp/
-          MICROPYTHON_VERSION_SHORT="${MICROPYTHON_VERSION#v}"
-          gh release download "$MICROPYTHON_VERSION" --repo "$MICROPYTHON_REPO_SHORT" --pattern "micropython-*.tar.xz"
+          MICROPYTHON_VERSION_SHORT="${MICROPYTHON_LATEST_RELEASE#v}"
+          gh release download "$MICROPYTHON_LATEST_RELEASE" --repo "$MICROPYTHON_REPO_SHORT" --pattern "micropython-*.tar.xz"
           
           tar -xJf "micropython-$MICROPYTHON_VERSION_SHORT.tar.xz"
           MICROPYTHON_ROOT_DIR="/tmp/micropython-$MICROPYTHON_VERSION_SHORT"
