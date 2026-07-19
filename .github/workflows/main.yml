@@ -123,7 +123,7 @@ jobs:
           
           cd "$MICROPYTHON_ROOT_DIR/ports/nrf/"
           make BOARD=SUPERMINI_NRF52840 BOARD_DIR="$GITHUB_WORKSPACE/ProMicro_config_files" SD="$SD" SOFTDEV_VERSION="$SOFTDEV_VERSION"
-          ls -alh
+          ls -alh build-*
 
           exit 1
 
