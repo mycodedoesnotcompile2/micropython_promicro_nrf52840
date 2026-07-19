@@ -1,0 +1,228 @@
+name: Build
+
+on:
+  workflow_dispatch
+  # schedule:
+  #  - cron: '5 5 * * *'
+
+# permissions:
+#   contents: write
+
+env:
+  MICROPYTHON_ROOT_DIR: /tmp/dellpwn
+  MICROPYTHON_REPO: https://github.com/R3n5k1/dellpwn.git
+  APT: sudo apt -y -qq -o=Dpkg::Use-Pty=0
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  checkout:
+    runs-on: ubuntu-latest
+    outputs:
+      MICROPYTHON_PREBUILT_LATEST_TAG: ${{ steps.release_latest_tag.outputs.MICROPYTHON_PREBUILT_LATEST_TAG }}
+      MICROPYTHON_CURRENT_COMMIT_ID: ${{ steps.release_commit_id.outputs.MICROPYTHON_CURRENT_COMMIT_ID }}
+      MICROPYTHON_VERSION: ${{ steps.release_version.outputs.MICROPYTHON_VERSION }}
+    
+    steps:
+      - name: Get latest release tag of this repo
+        id: release_latest_tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd /tmp/
+          MICROPYTHON_PREBUILT_LATEST_TAG=$(gh release list -R mycodedoesnotcompile2/MICROPYTHON_prebuilt_binaries --json tagName -L 1 --jq '.[].tagName' --exclude-drafts --exclude-pre-releases)
+          echo "MICROPYTHON_PREBUILT_LATEST_TAG=$MICROPYTHON_PREBUILT_LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "MICROPYTHON_PREBUILT_LATEST_TAG=$MICROPYTHON_PREBUILT_LATEST_TAG" >> $GITHUB_ENV
+
+      - name: Clone repo and check if there is a new and uncompiled yet version
+        id: release_commit_id
+        run: |
+          cd /tmp/
+          git clone --depth=1 "$MICROPYTHON_REPO" "$MICROPYTHON_BIN_NAME"
+
+          cd "$MICROPYTHON_ROOT_DIR"
+          MICROPYTHON_CURRENT_COMMIT_ID=$(git rev-parse --short HEAD)
+          echo "MICROPYTHON_CURRENT_COMMIT_ID=$MICROPYTHON_CURRENT_COMMIT_ID" >> $GITHUB_ENV
+          echo "MICROPYTHON_CURRENT_COMMIT_ID=$MICROPYTHON_CURRENT_COMMIT_ID" >> $GITHUB_OUTPUT
+
+          # case: no new commit => abort the workflow
+          if [[ $MICROPYTHON_PREBUILT_LATEST_TAG == $MICROPYTHON_CURRENT_COMMIT_ID ]]; then
+            echo "[!] No new version to compile"
+            exit 100
+          fi
+
+      - name: Get version
+        id: release_version_cargo_get
+        uses: nicolaiunrein/cargo-get@master
+        with:
+          subcommand: package.version
+          options: --entry "$MICROPYTHON_ROOT_DIR/Cargo.toml"
+
+      - name: Set MICROPYTHON_VERSION build variable
+        id: release_version
+        run: |
+          MICROPYTHON_VERSION=${{ steps.release_version_cargo_get.outputs.metadata }}
+          echo "MICROPYTHON_VERSION=$MICROPYTHON_VERSION" >> $GITHUB_OUTPUT
+
+
+  
+  build:
+    needs: checkout
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - TARGET: s132_nrf52_6_1_1
+            OS: ubuntu-latest
+            
+          - TARGET: s140_nrf52_6_1_1
+            OS: ubuntu-latest
+            
+          - TARGET: s140_nrf52_7_3_0
+            OS: ubuntu-latest
+
+            
+    runs-on: ${{ matrix.OS }}
+
+    env:
+      TARGET: ${{ matrix.TARGET }}
+      OS: ${{ matrix.OS }}
+
+      MICROPYTHON_PREBUILT_LATEST_TAG: ${{ needs.checkout.outputs.MICROPYTHON_PREBUILT_LATEST_TAG }}
+      MICROPYTHON_VERSION: ${{ needs.checkout.outputs.MICROPYTHON_VERSION }}
+      
+    steps:
+      - name: Clone repo
+        run: |
+          cd /tmp/
+          git clone --depth=1 "$MICROPYTHON_REPO" "$MICROPYTHON_BIN_NAME"
+      
+      - name: Install and configure dependencies
+        run: |
+          if [[ $OS == windows* ]]; then
+            $CHOCO wget
+          fi
+          
+          if [[ $OS == ubuntu* ]]; then
+            $APT update
+          fi
+
+          # for musl builds
+          if [[ $TARGET == *"-musl"* ]]; then
+            $APT install musl-tools
+          fi
+
+          # for everything else
+          if [[ -n "${CC_PKG:-}" ]]; then
+            $APT install $CC_PKG
+          fi
+
+          # for arm targets
+          if [[ $TARGET == "arm"* ]]; then
+            cd "$MICROPYTHON_ROOT_DIR"
+            cargo install --force --locked bindgen-cli
+          fi
+          
+          cargo install cross
+          
+          wget -nv "https://github.com/mycodedoesnotcompile2/rust_compile_config_files/raw/refs/heads/main/cross.toml" -O "$CROSS_CONFIG"
+          wget -nv "https://github.com/mycodedoesnotcompile2/rust_compile_config_files/raw/refs/heads/main/config.toml" -O ~/.cargo/config.toml
+
+      
+      - name: Install rust target
+        run: |
+          if [[ $TARGET == "mips"* ]]; then
+            rustup toolchain install nightly
+            rustup component add rust-src --toolchain nightly
+          else
+            rustup target add $TARGET
+          fi
+        
+      - name: Run build
+        run: |
+          cd $MICROPYTHON_ROOT_DIR
+
+          if [[ -z "${CC_COMPILER:-}" ]]; then
+            CC_COMPILER="cargo"
+          fi
+          
+          if [[ $TARGET == "mips"* ]]; then
+            $CC_COMPILER +nightly build -Z build-std=std,panic_abort -p "$MICROPYTHON_BIN_NAME" --release --target $TARGET
+          else
+            $CC_COMPILER build -p "$MICROPYTHON_BIN_NAME" --release --target $TARGET
+          fi
+                
+      - name: List build information
+        run: |
+          OLD_MICROPYTHON_BIN_DIR="$MICROPYTHON_ROOT_DIR/target/$TARGET/release"
+          OLD_MICROPYTHON_BIN_PATH="$OLD_MICROPYTHON_BIN_DIR/$MICROPYTHON_BIN_NAME"
+          ls -alh "$OLD_MICROPYTHON_BIN_DIR"
+          if [[ $TARGET == *-windows-* ]]; then
+            OLD_MICROPYTHON_BIN_PATH="$OLD_MICROPYTHON_BIN_DIR/$MICROPYTHON_BIN_NAME.exe"
+          fi
+          
+          MICROPYTHON_BIN_PATH="${{ runner.temp }}/$MICROPYTHON_BIN_NAME-$MICROPYTHON_VERSION-$TARGET"
+          if [[ $OS == windows* || $TARGET == *-windows-* ]]; then
+            MICROPYTHON_BIN_PATH="${{ runner.temp }}/$MICROPYTHON_BIN_NAME-$MICROPYTHON_VERSION-$TARGET.exe"
+          fi
+          MICROPYTHON_BIN_HASH_PATH="$MICROPYTHON_BIN_PATH.sha256.txt"
+          
+          cp -f "$OLD_MICROPYTHON_BIN_PATH" "$MICROPYTHON_BIN_PATH"
+          ls -alh "$MICROPYTHON_BIN_PATH"
+
+          cd "$(dirname "$MICROPYTHON_BIN_PATH")"
+          sha256sum --tag "$(basename "$MICROPYTHON_BIN_PATH")" | tee "$MICROPYTHON_BIN_HASH_PATH"
+          ldd "$MICROPYTHON_BIN_PATH" || true
+          "$MICROPYTHON_BIN_PATH" -h || true 
+          
+          echo "MICROPYTHON_BIN_PATH=$MICROPYTHON_BIN_PATH" >> $GITHUB_ENV
+          echo "MICROPYTHON_BIN_HASH_PATH=$MICROPYTHON_BIN_HASH_PATH" >> $GITHUB_ENV
+        
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: binary-${{ matrix.TARGET }}
+          path: |
+            ${{ env.MICROPYTHON_BIN_PATH }}
+            ${{ env.MICROPYTHON_BIN_HASH_PATH }}
+
+  deploy_release:
+    needs: [checkout, build]
+    runs-on: ubuntu-latest
+    env:
+       MICROPYTHON_CURRENT_COMMIT_ID: ${{ needs.checkout.outputs.MICROPYTHON_CURRENT_COMMIT_ID }}
+       MICROPYTHON_VERSION: ${{ needs.checkout.outputs.MICROPYTHON_VERSION }}
+    
+    steps:
+     - name: Download Artifact
+       uses: actions/download-artifact@v8
+       with:
+        pattern: binary-*
+        merge-multiple: true
+        path: /tmp/results
+
+     - name: List target
+       run: |
+          cd "/tmp/results"
+          ls -alh
+  
+          RELEASE_NOTES="/tmp/release_notes.txt"
+          echo "RELEASE_NOTES=$RELEASE_NOTES" >> $GITHUB_ENV
+          
+          cat *.sha256.txt > "$RELEASE_NOTES"
+          sha256sum -c *.sha256.txt
+          
+          mkdir -p "/tmp/hashes"
+          mv -f *.sha256.txt "/tmp/hashes/"
+  
+     - name: Create a new Github release
+       uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b #v3.0.1
+       with:
+         make_latest: true
+         body_path: ${{ env.RELEASE_NOTES }}
+         name: version ${{ env.MICROPYTHON_VERSION }} - build ${{ env.MICROPYTHON_CURRENT_COMMIT_ID }}
+         tag_name: ${{ env.MICROPYTHON_CURRENT_COMMIT_ID }}
+         files: |
+           /tmp/results/${{ env.MICROPYTHON_BIN_NAME }}-*
