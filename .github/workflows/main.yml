@@ -192,11 +192,11 @@ jobs:
           mv -f *.sha256.txt "/tmp/hashes/"
   
      - name: Create a new Github release
-       uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b #v3.0.1
+       uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 #v3.0.2
        with:
          make_latest: true
          body_path: ${{ env.RELEASE_NOTES }}
          name: version ${{ env.MICROPYTHON_LATEST_RELEASE }}
          tag_name: ${{ env.MICROPYTHON_LATEST_RELEASE }}
          files: |
-           /tmp/results/${{ env.RELEASE_FNAME }}
+           /tmp/results/*.zip
