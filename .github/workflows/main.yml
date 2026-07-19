@@ -81,7 +81,9 @@ jobs:
       MICROPYTHON_LATEST_RELEASE: ${{ needs.checkout.outputs.MICROPYTHON_LATEST_RELEASE }}
       
     steps:
-      - name: Clone repo
+      - uses: actions/checkout@v7
+      
+      - name: Download MicroPython
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -94,9 +96,20 @@ jobs:
           echo "MICROPYTHON_ROOT_DIR=$MICROPYTHON_ROOT_DIR" >> $GITHUB_ENV
 
       
-      - name: Install and configure dependencies
-        run: |
+      - name: Install dependencies and set env vars
+        run: | 
+          $APT update
+          $APT install binutils-arm-none-eabi build-essential gcc-arm-none-eabi libffi-dev git libnewlib-arm-none-eabi pkg-config python3
 
+          IFS=_ read -r SD FAMILY MAJOR MINOR PATCH <<< "$TARGET"
+          SOFTDEV_VERSION="$MAJOR.$MINOR.$PATCH"
+          echo $SD
+          echo $SOFTDEV_VERSION
+          
+          echo "SD=$SD" >> $GITHUB_ENV
+          echo "SOFTDEV_VERSION=$SOFTDEV_VERSION" >> $GITHUB_ENV
+          
+          exit 1
       
       - name: Install rust target
         run: |
