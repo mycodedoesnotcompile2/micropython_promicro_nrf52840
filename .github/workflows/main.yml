@@ -10,7 +10,6 @@ on:
 
 env:
   MICROPYTHON_REPO_SHORT: micropython/micropython
-  DOWNLOAD_BLE_STACK: download_ble_stack.sh
   APT: sudo apt -y -qq -o=Dpkg::Use-Pty=0
 
 defaults:
@@ -101,11 +100,11 @@ jobs:
         run: | 
           cd /tmp/
           $APT update
-          $APT install binutils-arm-none-eabi build-essential gcc-arm-none-eabi libffi-dev libnewlib-arm-none-eabi pkg-config python3
+          $APT install binutils-arm-none-eabi build-essential gcc-arm-none-eabi libffi-dev libnewlib-arm-none-eabi pkg-config python3 unzip
 
           cd "$MICROPYTHON_ROOT_DIR/ports/nrf/drivers/bluetooth/"
-          chmod o+x $DOWNLOAD_BLE_STACK
-          "$DOWNLOAD_BLE_STACK" "$TARGET"
+          chmod o+x "./download_ble_stack.sh"
+          "./download_ble_stack.sh" "$TARGET"
 
           IFS=_ read -r SD FAMILY MAJOR MINOR PATCH <<< "$TARGET"
           SOFTDEV_VERSION="$MAJOR.$MINOR.$PATCH"
