@@ -10,7 +10,7 @@ on:
 
 env:
   MICROPYTHON_ROOT_DIR: /tmp/dellpwn
-  MICROPYTHON_REPO: https://github.com/R3n5k1/dellpwn.git
+  MICROPYTHON_REPO_SHORT: micropython/micropython
   APT: sudo apt -y -qq -o=Dpkg::Use-Pty=0
 
 defaults:
@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       MICROPYTHON_PREBUILT_LATEST_TAG: ${{ steps.release_latest_tag.outputs.MICROPYTHON_PREBUILT_LATEST_TAG }}
-      MICROPYTHON_CURRENT_COMMIT_ID: ${{ steps.release_commit_id.outputs.MICROPYTHON_CURRENT_COMMIT_ID }}
+      MICROPYTHON_LATEST_RELEASE: ${{ steps.release_commit_id.outputs.MICROPYTHON_LATEST_RELEASE }}
       MICROPYTHON_VERSION: ${{ steps.release_version.outputs.MICROPYTHON_VERSION }}
     
     steps:
@@ -30,42 +30,37 @@ jobs:
         id: release_latest_tag
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
         run: |
           cd /tmp/
-          MICROPYTHON_PREBUILT_LATEST_TAG=$(gh release list -R mycodedoesnotcompile2/MICROPYTHON_prebuilt_binaries --json tagName -L 1 --jq '.[].tagName' --exclude-drafts --exclude-pre-releases)
+          MICROPYTHON_PREBUILT_LATEST_TAG=$(gh release list -R $OWNER/$REPO --json tagName -L 1 --jq '.[].tagName' --exclude-drafts --exclude-pre-releases)
           echo "MICROPYTHON_PREBUILT_LATEST_TAG=$MICROPYTHON_PREBUILT_LATEST_TAG" >> $GITHUB_OUTPUT
           echo "MICROPYTHON_PREBUILT_LATEST_TAG=$MICROPYTHON_PREBUILT_LATEST_TAG" >> $GITHUB_ENV
 
       - name: Clone repo and check if there is a new and uncompiled yet version
         id: release_commit_id
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd /tmp/
-          git clone --depth=1 "$MICROPYTHON_REPO" "$MICROPYTHON_BIN_NAME"
+
+          MICROPYTHON_LATEST_RELEASE=$(gh release list -R $MICROPYTHON_REPO_SHORT --json tagName -L 1 --jq '.[].tagName' --exclude-drafts --exclude-pre-releases)
+          echo "$MICROPYTHON_LATEST_RELEASE"
+          echo "$MICROPYTHON_PREBUILT_LATEST_TAG"
+          exit 1
+          
+          #git clone --depth=1 "$MICROPYTHON_REPO" "$MICROPYTHON_BIN_NAME"
 
           cd "$MICROPYTHON_ROOT_DIR"
-          MICROPYTHON_CURRENT_COMMIT_ID=$(git rev-parse --short HEAD)
-          echo "MICROPYTHON_CURRENT_COMMIT_ID=$MICROPYTHON_CURRENT_COMMIT_ID" >> $GITHUB_ENV
-          echo "MICROPYTHON_CURRENT_COMMIT_ID=$MICROPYTHON_CURRENT_COMMIT_ID" >> $GITHUB_OUTPUT
+          echo "MICROPYTHON_LATEST_RELEASE=$MICROPYTHON_LATEST_RELEASE" >> $GITHUB_ENV
+          echo "MICROPYTHON_LATEST_RELEASE=$MICROPYTHON_LATEST_RELEASE" >> $GITHUB_OUTPUT
 
           # case: no new commit => abort the workflow
-          if [[ $MICROPYTHON_PREBUILT_LATEST_TAG == $MICROPYTHON_CURRENT_COMMIT_ID ]]; then
+          if [[ $MICROPYTHON_PREBUILT_LATEST_TAG == $MICROPYTHON_LATEST_RELEASE ]]; then
             echo "[!] No new version to compile"
             exit 100
           fi
-
-      - name: Get version
-        id: release_version_cargo_get
-        uses: nicolaiunrein/cargo-get@master
-        with:
-          subcommand: package.version
-          options: --entry "$MICROPYTHON_ROOT_DIR/Cargo.toml"
-
-      - name: Set MICROPYTHON_VERSION build variable
-        id: release_version
-        run: |
-          MICROPYTHON_VERSION=${{ steps.release_version_cargo_get.outputs.metadata }}
-          echo "MICROPYTHON_VERSION=$MICROPYTHON_VERSION" >> $GITHUB_OUTPUT
-
 
   
   build:
