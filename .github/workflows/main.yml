@@ -10,7 +10,8 @@ permissions:
 
 env:
   MICROPYTHON_REPO_SHORT: micropython/micropython
-  MICROPYTHON_NRF_REL_PATH: ports/nrf/drivers/bluetooth/
+  MICROPYTHON_NRF_REL_PATH: ports/nrf/
+  MICROPYTHON_NRF_BLUETOOTH_REL_PATH: ports/nrf/drivers/bluetooth/
   BOARD_NAME: PROMICRO_NRF52840
   
   APT: sudo apt -y -qq -o=Dpkg::Use-Pty=0
@@ -108,7 +109,7 @@ jobs:
           MICROPYTHON_NRF_PATH="$MICROPYTHON_ROOT_DIR/$MICROPYTHON_NRF_REL_PATH/"
           echo "MICROPYTHON_NRF_PATH=$MICROPYTHON_NRF_PATH" >> $GITHUB_ENV
           
-          cd "$MICROPYTHON_NRF_PATH"
+          cd "$MICROPYTHON_ROOT_DIR/$MICROPYTHON_NRF_BLUETOOTH_REL_PATH/"
           chmod o+x "./download_ble_stack.sh"
           "./download_ble_stack.sh" "$TARGET"
 
