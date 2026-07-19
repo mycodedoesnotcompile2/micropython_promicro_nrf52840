@@ -118,7 +118,7 @@ jobs:
       - name: Run build
         run: |
           cd "$MICROPYTHON_ROOT_DIR/ports/nrf/"
-          make submodules
+          #make submodules
           make BOARD=SUPERMINI_NRF52840 BOARD_DIR="$GITHUB_WORKSPACE/ProMicro_config_files" SD="$SD" SOFTDEV_VERSION="$SOFTDEV_VERSION"
           ls -alh
 
