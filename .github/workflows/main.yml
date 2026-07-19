@@ -86,7 +86,7 @@ jobs:
         run: |
           cd /tmp/
           gh release download "$MICROPYTHON_VERSION" --repo "$MICROPYTHON_REPO_SHORT" --pattern "micropython-*.tar.xz"
-          tar -xJf "micropython-*.tar.xz"
+          tar -xJf micropython-*.tar.xz
           exit 1
 
       
