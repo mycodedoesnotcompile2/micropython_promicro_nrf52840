@@ -10,7 +10,9 @@ permissions:
 
 env:
   MICROPYTHON_REPO_SHORT: micropython/micropython
+  MICROPYTHON_NRF_REL_PATH: ports/nrf/drivers/bluetooth/
   BOARD_NAME: PROMICRO_NRF52840
+  
   APT: sudo apt -y -qq -o=Dpkg::Use-Pty=0
 
 defaults:
@@ -103,7 +105,10 @@ jobs:
           $APT update
           $APT install binutils-arm-none-eabi build-essential gcc-arm-none-eabi libffi-dev libnewlib-arm-none-eabi pkg-config python3 unzip
 
-          cd "$MICROPYTHON_ROOT_DIR/ports/nrf/drivers/bluetooth/"
+          MICROPYTHON_NRF_PATH="$MICROPYTHON_ROOT_DIR/$MICROPYTHON_NRF_REL_PATH/"
+          echo "MICROPYTHON_NRF_PATH=$MICROPYTHON_NRF_PATH" >> $GITHUB_ENV
+          
+          cd "$MICROPYTHON_NRF_PATH"
           chmod o+x "./download_ble_stack.sh"
           "./download_ble_stack.sh" "$TARGET"
 
@@ -122,34 +127,39 @@ jobs:
             sed -i '/MICROPY_HW_ENABLE_USB/d; $a#define MICROPY_HW_ENABLE_USB (0)' "$GITHUB_WORKSPACE/ProMicro_config_files/mpconfigboard.h"; 
           fi
           
-          cd "$MICROPYTHON_ROOT_DIR/ports/nrf/"
+          cd "$MICROPYTHON_NRF_PATH"
           make -j$(nproc) BOARD="$BOARD_NAME" BOARD_DIR="$GITHUB_WORKSPACE/ProMicro_config_files" SD="$SD" SOFTDEV_VERSION="$SOFTDEV_VERSION"
           
       - name: List build files
         run: |
-          cd "$MICROPYTHON_ROOT_DIR/ports/nrf/"
+          cd "$MICROPYTHON_NRF_PATH"
           ls -alh build-*
           file build-*/firmware*
                 
       - name: Pack the build
         run: |
-          RELEASE_FNAME="$MICROPYTHON_LATEST_RELEASE-$SD-$SOFTDEV_VERSION.zip"
+          RELEASE_FNAME="micropython-$MICROPYTHON_LATEST_RELEASE-$SD-$SOFTDEV_VERSION.zip"
           RELEASE_FNAME_HASH="$RELEASE_FNAME.sha256.txt"
+          RELEASE_FNAME_PATH="$MICROPYTHON_ROOT_DIR/ports/nrf/$RELEASE_FNAME"
+          RELEASE_FNAME_HASH_PATH="$MICROPYTHON_ROOT_DIR/ports/nrf/$RELEASE_FNAME_HASH"
           
-          cd "$MICROPYTHON_ROOT_DIR/ports/nrf/"
-          zip -r "$RELEASE_FNAME" build-*/firmware.*
-          sha256sum --tag "$(basename "$RELEASE_FNAME")" | tee "$RELEASE_FNAME_HASH"
-
           echo "RELEASE_FNAME=$RELEASE_FNAME" >> $GITHUB_ENV
           echo "RELEASE_FNAME_HASH=$RELEASE_FNAME_HASH" >> $GITHUB_ENV
+          echo "RELEASE_FNAME_PATH=$RELEASE_FNAME_PATH" >> $GITHUB_ENV
+          echo "RELEASE_FNAME_HASH_PATH=$RELEASE_FNAME_HASH_PATH" >> $GITHUB_ENV
+          
+          cd "$MICROPYTHON_ROOT_DIR/ports/nrf/"
+          zip -r "$RELEASE_FNAME" build-$BOARD_NAME-$SD/firmware.*
+          sha256sum --tag "$(basename "$RELEASE_FNAME")" | tee "$RELEASE_FNAME_HASH"
+
         
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
         with:
           name: binary-${{ matrix.TARGET }}
           path: |
-            ${{ env.RELEASE_FNAME }}
-            ${{ env.RELEASE_FNAME_HASH }}
+            ${{ env.RELEASE_FNAME_PATH }}
+            ${{ env.RELEASE_FNAME_HASH_PATH }}
 
 
   deploy_release:
