@@ -5,11 +5,12 @@ on:
   # schedule:
   #  - cron: '5 5 * * *'
 
-# permissions:
-#   contents: write
+permissions:
+  contents: write
 
 env:
   MICROPYTHON_REPO_SHORT: micropython/micropython
+  BOARD_NAME: PROMICRO_NRF52840
   APT: sudo apt -y -qq -o=Dpkg::Use-Pty=0
 
 defaults:
@@ -122,53 +123,40 @@ jobs:
           fi
           
           cd "$MICROPYTHON_ROOT_DIR/ports/nrf/"
-          make BOARD=SUPERMINI_NRF52840 BOARD_DIR="$GITHUB_WORKSPACE/ProMicro_config_files" SD="$SD" SOFTDEV_VERSION="$SOFTDEV_VERSION"
-          ls -alh build-*
-
-          exit 1
-
-                
-      - name: List build information
+          make -j$(nproc) BOARD="$BOARD_NAME" BOARD_DIR="$GITHUB_WORKSPACE/ProMicro_config_files" SD="$SD" SOFTDEV_VERSION="$SOFTDEV_VERSION"
+          
+      - name: List build files
         run: |
-          OLD_MICROPYTHON_BIN_DIR="$MICROPYTHON_ROOT_DIR/target/$TARGET/release"
-          OLD_MICROPYTHON_BIN_PATH="$OLD_MICROPYTHON_BIN_DIR/$MICROPYTHON_BIN_NAME"
-          ls -alh "$OLD_MICROPYTHON_BIN_DIR"
-          if [[ $TARGET == *-windows-* ]]; then
-            OLD_MICROPYTHON_BIN_PATH="$OLD_MICROPYTHON_BIN_DIR/$MICROPYTHON_BIN_NAME.exe"
-          fi
+          cd "$MICROPYTHON_ROOT_DIR/ports/nrf/"
+          ls -alh build-*
+          file build-*/firmware*
+                
+      - name: Pack the build
+        run: |
+          RELEASE_FNAME="$MICROPYTHON_LATEST_RELEASE-$SD-$SOFTDEV_VERSION.zip"
+          RELEASE_FNAME_HASH="$RELEASE_FNAME.sha256.txt"
           
-          MICROPYTHON_BIN_PATH="${{ runner.temp }}/$MICROPYTHON_BIN_NAME-$MICROPYTHON_VERSION-$TARGET"
-          if [[ $OS == windows* || $TARGET == *-windows-* ]]; then
-            MICROPYTHON_BIN_PATH="${{ runner.temp }}/$MICROPYTHON_BIN_NAME-$MICROPYTHON_VERSION-$TARGET.exe"
-          fi
-          MICROPYTHON_BIN_HASH_PATH="$MICROPYTHON_BIN_PATH.sha256.txt"
-          
-          cp -f "$OLD_MICROPYTHON_BIN_PATH" "$MICROPYTHON_BIN_PATH"
-          ls -alh "$MICROPYTHON_BIN_PATH"
+          cd "$MICROPYTHON_ROOT_DIR/ports/nrf/"
+          zip -r "$RELEASE_FNAME" build-*/firmware.*
+          sha256sum --tag "$(basename "$RELEASE_FNAME")" | tee "$RELEASE_FNAME_HASH"
 
-          cd "$(dirname "$MICROPYTHON_BIN_PATH")"
-          sha256sum --tag "$(basename "$MICROPYTHON_BIN_PATH")" | tee "$MICROPYTHON_BIN_HASH_PATH"
-          ldd "$MICROPYTHON_BIN_PATH" || true
-          "$MICROPYTHON_BIN_PATH" -h || true 
-          
-          echo "MICROPYTHON_BIN_PATH=$MICROPYTHON_BIN_PATH" >> $GITHUB_ENV
-          echo "MICROPYTHON_BIN_HASH_PATH=$MICROPYTHON_BIN_HASH_PATH" >> $GITHUB_ENV
+          echo "RELEASE_FNAME=$RELEASE_FNAME" >> $GITHUB_ENV
+          echo "RELEASE_FNAME_HASH=$RELEASE_FNAME_HASH" >> $GITHUB_ENV
         
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
         with:
           name: binary-${{ matrix.TARGET }}
           path: |
-            ${{ env.MICROPYTHON_BIN_PATH }}
-            ${{ env.MICROPYTHON_BIN_HASH_PATH }}
+            ${{ env.RELEASE_FNAME }}
+            ${{ env.RELEASE_FNAME_HASH }}
 
 
   deploy_release:
     needs: [checkout, build]
     runs-on: ubuntu-latest
     env:
-       MICROPYTHON_CURRENT_COMMIT_ID: ${{ needs.checkout.outputs.MICROPYTHON_CURRENT_COMMIT_ID }}
-       MICROPYTHON_VERSION: ${{ needs.checkout.outputs.MICROPYTHON_VERSION }}
+       MICROPYTHON_LATEST_RELEASE: ${{ needs.checkout.outputs.MICROPYTHON_LATEST_RELEASE }}
     
     steps:
      - name: Download Artifact
@@ -197,7 +185,7 @@ jobs:
        with:
          make_latest: true
          body_path: ${{ env.RELEASE_NOTES }}
-         name: version ${{ env.MICROPYTHON_VERSION }} - build ${{ env.MICROPYTHON_CURRENT_COMMIT_ID }}
-         tag_name: ${{ env.MICROPYTHON_CURRENT_COMMIT_ID }}
+         name: version ${{ env.MICROPYTHON_LATEST_RELEASE }}
+         tag_name: ${{ env.MICROPYTHON_LATEST_RELEASE }}
          files: |
-           /tmp/results/${{ env.MICROPYTHON_BIN_NAME }}-*
+           /tmp/results/${{ env.RELEASE_FNAME }}
