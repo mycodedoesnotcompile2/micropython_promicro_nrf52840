@@ -7,6 +7,7 @@ MicroPython releases for ProMicro nRF52840 (formerly known as SuperMini) for:
 * s140-7.3.0
 
 [Builds](https://github.com/mycodedoesnotcompile2/micropython_promicro_nrf52840/blob/main/.github/workflows/main.yml) are automatically done when there is a new stable MicroPython release (checked daily).
+Releases are [here](https://github.com/mycodedoesnotcompile2/micropython_promicro_nrf52840/releases/).
 
 Interesting resources
 ---------------------
