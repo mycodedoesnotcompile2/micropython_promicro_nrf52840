@@ -1,7 +1,12 @@
 MicroPython for ProMicro nRF52840
 ---------------------------------
 
-Micropython releases for ProMicro nRF52840 (formerly known as SuperMini).
+Micropython releases for ProMicro nRF52840 (formerly known as SuperMini) for:
+* s132-6.1.1
+* s140-6.1.1
+* s140-7.3.0
+
+Build are automatically done when there is a new stable MicroPython release.
 
 Interesting resources
 ---------------------
