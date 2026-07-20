@@ -15,6 +15,9 @@ Interesting resources
 ---------------------
 * https://github.com/jkorte-dev/micropython-board-NRF52840
 * https://github.com/joric/nrfmicro/wiki/Alternatives
+* To update the bootloader:
+  * https://www.beachyuk.com/blog/connecting-and-testing-promicro-nrf52840-clones
+  * https://www.youtube.com/watch?v=z7DNb0lSqIA
 
 Copyright and license
 ---------------------
