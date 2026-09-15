@@ -1,7 +1,7 @@
 MicroPython for ProMicro nRF52840
 ---------------------------------
 
-MicroPython releases for ProMicro nRF52840 (formerly known as SuperMini) for:
+MicroPython releases for ProMicro nRF52840 (formerly known as SuperMini) for different bootloader versions:
 * s132-6.1.1
 * s140-6.1.1
 * s140-7.3.0
@@ -15,7 +15,7 @@ Interesting resources
 ---------------------
 * https://github.com/jkorte-dev/micropython-board-NRF52840
 * https://github.com/joric/nrfmicro/wiki/Alternatives
-* To update the bootloader:
+* To update the bootloader from version 6.1.1 to 7.3.0:
   * https://www.beachyuk.com/blog/connecting-and-testing-promicro-nrf52840-clones
   * https://www.youtube.com/watch?v=z7DNb0lSqIA
 
