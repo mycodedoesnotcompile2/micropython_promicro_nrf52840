@@ -21,5 +21,5 @@ Interesting resources
 
 Copyright and license
 ---------------------
-- All trademarks, service marks, trade names and product names appearing on this repository are the property of their respective owners
+- All trademarks, service marks, trade names, and product names referenced or displayed in this repository are the property of their respective owners. No ownership rights or affiliation with any such rights holders are implied.  
 - Same licence as all material used for this project
